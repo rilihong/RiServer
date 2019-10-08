@@ -90,7 +90,7 @@ func (baseServer *Server) RandSend(bMsg []byte,serverName string) error{
 		delete(idMap, serverName)
 		return errors.New("server_len_zero")
 	}
-	index := baseServer.rand_seed.Int()%idLen
+	//index := baseServer.rand_seed.Int()%idLen
 
 	return nil
 }
