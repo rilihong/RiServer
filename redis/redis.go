@@ -8,6 +8,7 @@ import (
 type Client struct{
 	_op Opt
 	_client *redis.Client
+	_redisEnd chan struct{}
 }
 
 type Opt struct{
@@ -55,6 +56,8 @@ func NewRedis(op Opt) *Client{
 	client := new(Client)
 	client._client = cli
 	client._op = op
+	client._redisEnd = make(chan struct{})
+	go KeepALive(client)
 	return client
 }
 
@@ -69,4 +72,26 @@ func (client *Client)Set(key string, value interface{},
 		return false,err
 	}
 	return true,nil
+}
+
+func KeepALive(client *Client){
+	var f func()
+	f = func(){
+		select{
+			case <- client._redisEnd :
+				return
+			default:
+		}
+		_,err := client._client.Ping().Result()
+		if err != nil{
+			return
+		}
+		time.AfterFunc(time.Second * 30,f)
+	}
+	f()
+}
+
+func (client *Client)Close(){
+	client._client.Close()
+	client._redisEnd <- struct{}{}
 }
