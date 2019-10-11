@@ -1,0 +1,18 @@
+syntax = "proto3";
+// 定义包名
+package proto;
+  
+  // 定义 Req 消息结构
+  message AgentReq {
+    // 类型 字段 = 标识号
+    string reqType = 1;
+    string reqToken = 2;
+    bytes  reqContent = 3;
+  }
+
+  // 定义 Res 消息结构
+  message AgentRes {
+    string resType = 1;
+    string reqToken = 2;
+    bytes  resContent = 3;
+  }

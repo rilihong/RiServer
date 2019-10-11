@@ -3,24 +3,39 @@ package base
 import (
 	randCp "crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"github.com/rs/zerolog/log"
 	"io"
 	"math/rand"
 	"net"
+	"rilihong/RiServer/proto"
 	"strconv"
+	"time"
+)
+
+const(
+	TypeRandom = 0
+	TypeHash = 1
+	TypeDirect = 2
+)
+
+var (
+	timeout    = 5 * time.Second
+	rTimeout = 10 * time.Second
+	ips      = []string{"172.16.75.140:2379", "172.16.75.140:22379", "172.16.75.140:32379"}
+	nodeInfo = "{\"ip\":\"127.0.0.1:9880\",\"serverName\":\"routerServer1\",\"serverId\":120001,\"base\":{\"baseName\":\"router\",\"baseId\":120000}}"
 )
 
 type HandleFunc func(msg string,session *Session) (string,error)
 
-type GClientMap map[int]GClient
-
 type Server struct {
 	port int
 	handleMap map[string]HandleFunc
-	gRpcMap map[string]GClientMap
-	rand_seed *rand.Rand
+	gRpcMap map[string]GClientMap		//rpc链接的服务器，发送rpc请求
+	randSeed *rand.Rand
+	sClientMap map[string]SClientMap	//socket链接的服务器，发送消息
+	eServer *EtcdServer
+	eCache *EtcdServerCache
 }
 
 func (baseServer *Server)registerFunc(str string,handle HandleFunc){
@@ -28,12 +43,12 @@ func (baseServer *Server)registerFunc(str string,handle HandleFunc){
 }
 
 func (baseServer *Server)BMsgHandle(bMsg []byte,session *Session) ([]byte,error){
-	reqStruct :=new(Struct)
-	err := json.Unmarshal(bMsg,*reqStruct)
+	reqStruct :=new(proto.BStruct)
+	err := reqStruct.XXX_Unmarshal(bMsg)
 	if err != nil {
 		log.Error().Str("req",string(bMsg)).Msg("error request struct")
 	}
-	reqType := reqStruct.ReqType
+	reqType := reqStruct.Type
 	_,ok := baseServer.handleMap[reqType]
 	if ok == false{
 		log.Error().Str("req",string(bMsg)).Str("type",reqType).Msg("error request type")
@@ -49,7 +64,16 @@ func (baseServer *Server)BMsgHandle(bMsg []byte,session *Session) ([]byte,error)
 
 func (baseServer *Server)Init(port int) *Server {
 	baseServer.port = port
-	baseServer.rand_seed = rand.New(rand.NewSource(10))
+	baseServer.randSeed = rand.New(rand.NewSource(10))
+	baseServer.eServer = NewEtcdServer(ips,timeout)
+	err := baseServer.eServer.RegisterServer("/nodes/node1",nodeInfo)
+	if err != nil{
+		return nil
+	}
+	sByte := baseServer.eServer.GetAllServer("/nodes/")
+	wChan := baseServer.eServer.AddWatch("/nodes/")
+	baseServer.eCache.Init(sByte)
+	go baseServer.eCache.ListenUpdate(wChan)
 	return baseServer
 }
 
@@ -67,6 +91,7 @@ func (baseServer *Server) ListenAndServe() {
 			continue
 		}
 		sess := NewSession(conn, baseServer)
+
 		go sess.SessionRead()
 		go sess.SessionWrite()
 	}
@@ -80,17 +105,64 @@ func (baseServer *Server) SessionId() string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-func (baseServer *Server) RandSend(bMsg []byte,serverName string) error{
-	idMap,ok := baseServer.gRpcMap[serverName]
-	if ok == false{
-		return errors.New("no_server")
+func (baseServer *Server) GetGClient(bMsg []byte,serverName string,sType int,key int64) (GClient,error){
+	var gClient GClient
+	var err error
+	switch sType {
+		case TypeRandom:
+			{
+				gClient,err = baseServer.gRpcMap[serverName].RandomServer()
+				break
+			}
+		case TypeHash:
+			{
+				gClient,err = baseServer.gRpcMap[serverName].HashServer(int(key))
+				break
+			}
+		case TypeDirect:
+			{
+				gClient,err = baseServer.gRpcMap[serverName].DirectServer(key)
+				break
+			}
+		default:
+			{
+				log.Error().Int("sendType",sType).Msg("sendType error")
+				gClient,err = GClient{},errors.New("sendType error")
+			}
 	}
-	idLen := len(idMap)
-	if idLen == 0{
-		delete(idMap, serverName)
-		return errors.New("server_len_zero")
+	if err != nil {
+		log.Error().Int("sendType",sType).Str("err",err.Error()).Msg("find client error")
 	}
-	//index := baseServer.rand_seed.Int()%idLen
+	return gClient,err
+}
 
-	return nil
+func (baseServer *Server) GetSClient(bMsg []byte,serverName string,sType int,key int64) (SClient,error){
+	var sClient SClient
+	var err error
+	switch sType {
+	case TypeRandom:
+		{
+			sClient,err = baseServer.sClientMap[serverName].RandomServer()
+			break
+		}
+	case TypeHash:
+		{
+			sClient,err = baseServer.sClientMap[serverName].HashServer(int(key))
+			break
+		}
+	case TypeDirect:
+		{
+			sClient,err = baseServer.sClientMap[serverName].DirectServer(key)
+			break
+		}
+	default:
+		{
+			log.Error().Int("sendType",sType).Msg("sendType error")
+			sClient,err = SClient{},errors.New("sendType error")
+		}
+	}
+	if err != nil {
+		log.Error().Int("sendType",sType).Str("err",err.Error()).Msg("find client error")
+	}
+	return sClient,err
 }
