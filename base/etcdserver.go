@@ -33,7 +33,7 @@ func (eServer *EtcdServer)AddWatch(nodePrefix string) clientv3.WatchChan{
 }
 
 func (eServer *EtcdServer)RegisterServer(key string,serverInfo string) error{
-	_,err := eServer.client.Put(context.TODO(), key,serverInfo,nil)
+	_,err := eServer.client.Put(context.TODO(), key,serverInfo)
 	return err
 }
 

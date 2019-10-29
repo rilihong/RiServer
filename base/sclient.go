@@ -19,9 +19,12 @@ func NewSClient(ip string,serverId int64,serverName string,server *Server ) *SCl
 		log.Error().Str("ip",ip).Msg("connect error")
 	}
 	sClient := new(SClient)
-	sClient.Session = NewSession(conn,server)
+	sClient.Session = NewSession(conn,server,server.routerHandle)
 	sClient.ServerId = serverId
 	sClient.ServerName = serverName
+
+	go sClient.Session.SessionRead()
+	go sClient.Session.SessionWrite()
 	return sClient
 }
 

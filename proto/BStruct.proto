@@ -7,3 +7,10 @@ package proto;
     string Type = 1;
     bytes  Content = 2;
   }
+
+  message BStructRes {
+  string Type = 1;
+  string result = 2;
+  bytes  Content = 3;
+  }
+

@@ -2,7 +2,7 @@ package base
 
 import (
 	"errors"
-	"github.com/grpc/grpc-go"
+	"google.golang.org/grpc"
 	"math/rand"
 )
 

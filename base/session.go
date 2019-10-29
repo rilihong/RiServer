@@ -1,6 +1,7 @@
 package base
 
 import (
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"io"
 	"net"
@@ -13,16 +14,18 @@ type Session struct{
 	sessionId string
 	buffer chan []byte
 	server *Server
+	handle MsgHandle
 	sync.RWMutex
 }
 
-func NewSession(conn net.Conn , server *Server) *Session{
+func NewSession(conn net.Conn , server *Server,handle MsgHandle) *Session{
 	session := new(Session)
 	session.conn = conn
 	session.isLive = true
 	session.buffer = make(chan []byte,1024)
 	session.server = server
 	session.sessionId = server.SessionId()
+	session.handle = handle
 	return session
 }
 
@@ -76,7 +79,8 @@ func (session *Session)SessionRead(){
 			session.Close()
 			return
 		}
-		res,err := session.server.BMsgHandle(req, session)
+		fmt.Println("SessionRead :",string(req))
+		res,err := session.handle(req, session)
 		session.Write(res)
 	}
 }

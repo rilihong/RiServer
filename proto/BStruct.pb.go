@@ -70,18 +70,76 @@ func (m *BStruct) GetContent() []byte {
 	return nil
 }
 
+type BStructRes struct {
+	Type                 string   `protobuf:"bytes,1,opt,name=Type,proto3" json:"Type,omitempty"`
+	Result               string   `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+	Content              []byte   `protobuf:"bytes,3,opt,name=Content,proto3" json:"Content,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BStructRes) Reset()         { *m = BStructRes{} }
+func (m *BStructRes) String() string { return proto.CompactTextString(m) }
+func (*BStructRes) ProtoMessage()    {}
+func (*BStructRes) Descriptor() ([]byte, []int) {
+	return fileDescriptor_aab942631f1ab7ac, []int{1}
+}
+
+func (m *BStructRes) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BStructRes.Unmarshal(m, b)
+}
+func (m *BStructRes) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BStructRes.Marshal(b, m, deterministic)
+}
+func (m *BStructRes) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BStructRes.Merge(m, src)
+}
+func (m *BStructRes) XXX_Size() int {
+	return xxx_messageInfo_BStructRes.Size(m)
+}
+func (m *BStructRes) XXX_DiscardUnknown() {
+	xxx_messageInfo_BStructRes.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BStructRes proto.InternalMessageInfo
+
+func (m *BStructRes) GetType() string {
+	if m != nil {
+		return m.Type
+	}
+	return ""
+}
+
+func (m *BStructRes) GetResult() string {
+	if m != nil {
+		return m.Result
+	}
+	return ""
+}
+
+func (m *BStructRes) GetContent() []byte {
+	if m != nil {
+		return m.Content
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*BStruct)(nil), "proto.BStruct")
+	proto.RegisterType((*BStructRes)(nil), "proto.BStructRes")
 }
 
 func init() { proto.RegisterFile("BStruct.proto", fileDescriptor_aab942631f1ab7ac) }
 
 var fileDescriptor_aab942631f1ab7ac = []byte{
-	// 90 bytes of a gzipped FileDescriptorProto
+	// 121 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x75, 0x0a, 0x2e, 0x29,
 	0x2a, 0x4d, 0x2e, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0x53, 0x4a, 0xe6, 0x5c,
 	0xec, 0x50, 0x71, 0x21, 0x21, 0x2e, 0x96, 0x90, 0xca, 0x82, 0x54, 0x09, 0x46, 0x05, 0x46, 0x0d,
 	0xce, 0x20, 0x30, 0x5b, 0x48, 0x82, 0x8b, 0xdd, 0x39, 0x3f, 0xaf, 0x24, 0x35, 0xaf, 0x44, 0x82,
-	0x49, 0x81, 0x51, 0x83, 0x27, 0x08, 0xc6, 0x4d, 0x62, 0x03, 0xeb, 0x37, 0x06, 0x04, 0x00, 0x00,
-	0xff, 0xff, 0x3b, 0xe0, 0xff, 0xeb, 0x57, 0x00, 0x00, 0x00,
+	0x49, 0x81, 0x51, 0x83, 0x27, 0x08, 0xc6, 0x55, 0x0a, 0xe2, 0xe2, 0x82, 0x6a, 0x0c, 0x4a, 0x2d,
+	0xc6, 0xaa, 0x57, 0x8c, 0x8b, 0xad, 0x28, 0xb5, 0xb8, 0x34, 0x07, 0xa2, 0x95, 0x33, 0x08, 0xca,
+	0x43, 0x36, 0x93, 0x19, 0xc5, 0xcc, 0x24, 0x36, 0xb0, 0x9b, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff,
+	0xff, 0xa2, 0xff, 0x8e, 0xe3, 0xab, 0x00, 0x00, 0x00,
 }

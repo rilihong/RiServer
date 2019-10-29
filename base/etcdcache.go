@@ -13,7 +13,7 @@ import (
 var (
 	dialTimeout    = 5 * time.Second
 	requestTimeout = 10 * time.Second
-	endpoints      = []string{"172.16.75.140:2379", "172.16.75.140:22379", "172.16.75.140:32379"}
+	endpoints      = []string{"120.92.42.105:2379","120.92.42.105:32379","120.92.86.87:22379"}
 )
 
 type ServerBase struct{
@@ -50,14 +50,17 @@ type EtcdServerCache struct {
 
 func NewEtcdServerCache(allServer []SByte) *EtcdServerCache{
 	eCache := new(EtcdServerCache)
+	eCache.ServerMap = make(map[string]SameServerMap)		//serverName to serverInfo
+	eCache.IdMap = make(map[int64]ServerInfo)			//serverID to serverInfo
+	eCache.RWLock = new(sync.RWMutex)
 	eCache.Init(allServer)
 	return eCache
 }
 
 func (eSCache *EtcdServerCache)Init(allServer []SByte){
-	eSCache.RWLock = new(sync.RWMutex)
 	for _,v := range allServer{
 		eSCache.AddServerInfo(v)
+		fmt.Println(" init :",string(v))
 	}
 }
 
@@ -84,7 +87,7 @@ func (eSCache *EtcdServerCache)AddServerInfo(sByte []byte) error{
 		eSCache.RWLock.Lock()
 		s,ok := eSCache.ServerMap[sInfo.SBase.BaseName]
 		if ok != true{
-			var sSM SameServerMap
+			var sSM = SameServerMap{BaseId:sInfo.SBase.BaseId,BaseName:sInfo.SBase.BaseName,ServerIdMap:make(map[int64] ServerInfo)}
 			eSCache.ServerMap[sInfo.SBase.BaseName] = sSM
 			s = eSCache.ServerMap[sInfo.SBase.BaseName]
 		}
@@ -112,8 +115,10 @@ func (eSCache *EtcdServerCache)GetServerInfoByName(serverName string) SameServer
 	defer eSCache.RWLock.Unlock()
 	s,ok := eSCache.ServerMap[serverName]
 	if ok != true{
+		fmt.Println("eSCache no info")
 		return SameServerMap{}
 	}
+	fmt.Println("eSCache has info")
 	return s
 }
 
