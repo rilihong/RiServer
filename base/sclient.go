@@ -13,13 +13,13 @@ type SClient struct{
 	ServerName string
 }
 
-func NewSClient(ip string,serverId int64,serverName string,server *Server ) *SClient{
+func NewSClient(ip string,serverId int64,serverName string,handle MsgHandle ) *SClient{
 	conn, err := net.Dial("tcp", ip)
 	if err != nil {
 		log.Error().Str("ip",ip).Msg("connect error")
 	}
 	sClient := new(SClient)
-	sClient.Session = NewSession(conn,server,server.routerHandle)
+	sClient.Session = NewSession(conn,handle)
 	sClient.ServerId = serverId
 	sClient.ServerName = serverName
 

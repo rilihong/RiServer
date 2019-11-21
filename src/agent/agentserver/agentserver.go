@@ -13,82 +13,75 @@ type AgentServer struct {
 	base.Server
 	userMap map[string]UserInfo.UserInfo	//session + UserInfo
 	IdToSession map[int64]string
+	TokenMap map[string]*base.Session
 }
 
 func NewAgentServer(port int) *AgentServer{
 	agentServer := new(AgentServer)
 	agentServer.Init(port,"agent",1920001)
+	agentServer.TokenMap = make(map[string]*base.Session)
 	agentServer.SetMsgHandle(agentServer.BMsgHandle)
 	agentServer.SetRouterHandle(agentServer.RouterMsgHandle)
 	agentServer.RegisterFunc("login",agentServer.NormalHandle)
-	agentServer.RegisterFunc("agent_receive",agentServer.RouterResHandle)
+	agentServer.RegisterFunc("loginRes",agentServer.RouterResHandle)
 	return agentServer
 }
 
-func (server *AgentServer)NormalHandle(bMsg []byte,session *base.Session) ([]byte,error){
+func (server *AgentServer)NormalHandle(bMsg []byte,session *base.Session) ([]byte,string,error){
+	resType := "loginRes"
 	reqStruct :=new(proto.BStruct)
 	err := reqStruct.XXX_Unmarshal(bMsg)
 	if err != nil {
 		log.Error().Str("req",string(bMsg)).Msg("NormalHandle error request struct")
-		return nil,err
+		return nil,resType,err
 	}
 	fmt.Println("type:",reqStruct.GetType()," content:",string(reqStruct.GetContent()))
 	bLen := len(reqStruct.GetContent())
 	res := make([]byte,bLen)
 	copy(res,reqStruct.GetContent())
-	return res,nil
+	return res,resType,nil
 }
 
-func (server *AgentServer)RouterResHandle(bMsg []byte,session *base.Session) ([]byte,error){
+func (server *AgentServer)RouterResHandle(bMsg []byte,session *base.Session) ([]byte,string,error){
 
 	agentRes :=new(proto.AgentRes)
 	err := agentRes.XXX_Unmarshal(bMsg)
 	if err != nil {
 		log.Error().Str("req",string(bMsg)).Msg("RouterHandle error request struct")
-		return nil,err
+		return nil,"",err
 	}
 	fmt.Println("type:",agentRes.GetResType()," content:",string(agentRes.GetResContent()))
 	bLen := len(agentRes.GetResContent())
 	res := make([]byte,bLen)
 	copy(res,agentRes.GetResContent())
-	return res,nil
+	return res,agentRes.ResType,nil
 }
 
 func (server *AgentServer)BMsgHandle(bMsg []byte,session *base.Session) ([]byte,error){
-	resString := &proto.BStructRes{Result:"ok"}
 	reqStruct :=new(proto.BStruct)
+	//解析异常，不返回
 	err := reqStruct.XXX_Unmarshal(bMsg)
 	if err != nil {
-		log.Error().Str("req",string(bMsg)).Msg("agent BMsgHandle error request struct")
-		resString.Result = err.Error()
-		bM := make([]byte,0)
-		res,err1 := resString.XXX_Marshal(bM,false)
-		if err1 != nil{
-			log.Error().Str("req",string(bM)).Msg("Marshal err")
-		}
-		return res,err
+		log.Error().Str("req",string(bMsg)).Str("err",err.Error()).Msg("agent BMsgHandle error request struct")
+		return nil,err
 	}
-	reqType := reqStruct.Type
-	resString.Type = reqType
-	var result []byte
-	handle,err := server.GetFunc(reqType)
+	//有处理函数，且函数处理异常，返回异常信息
+	resString := &proto.BStructRes{Result:"ok"}
+	handle,err := server.GetFunc(reqStruct.Type)
 	if err == nil{
-		result,err = handle(bMsg,session)
+		result,sType,err := handle(bMsg,session)
 		if err != nil {
+			resString.Type = sType
 			resString.Result = err.Error()
-		}else{
 			resString.Content = result
+			bM := make([]byte,0)
+			res,_ := resString.XXX_Marshal(bM,false)
+			return res,err
 		}
-	}else{
-		resString.Result = err.Error()
 	}
-	bM := make([]byte,0)
-	bRes,err1 := resString.XXX_Marshal(bM,false)
-	if err1 != nil{
-		log.Error().Str("req",string(bM)).Msg("Marshal err")
-	}
-
-	agentMsg := proto.AgentReq{ReqType: "agent_pass", ReqContent:bMsg,ReqToken:base.RandToken()}
+	//透传到router
+	agentMsg := proto.AgentReq{ReqType: reqStruct.Type, ReqContent:reqStruct.Content,ReqToken:base.RandToken()}
+	server.TokenMap[agentMsg.ReqToken] = session
 	tmpMsg := make([]byte,0)
 	res,err := agentMsg.XXX_Marshal(tmpMsg,false)
 	if err != nil {
@@ -98,18 +91,27 @@ func (server *AgentServer)BMsgHandle(bMsg []byte,session *base.Session) ([]byte,
 		err = server.SendServerMessage(res,"router",base.TypeRandom,0)
 	}
 
-	return bRes,err
+	return nil,err
 }
 
 func (server *AgentServer)RouterMsgHandle(bMsg []byte,session *base.Session) ([]byte,error){
 	fmt.Println("RouterMsgHandle :" ,string(bMsg))
-	reqStruct :=new(proto.AgentRes)
-	err := reqStruct.XXX_Unmarshal(bMsg)
+	resStruct :=new(proto.AgentRes)
+	err := resStruct.XXX_Unmarshal(bMsg)
 	if err != nil {
 		log.Error().Str("req",string(bMsg)).Msg("agent BMsgHandle error request struct")
 		return []byte{},err
 	}
-	log.Info().Str("receive",string(bMsg))
+	token := resStruct.ReqToken
+	link,ok := server.TokenMap[token]
+	if ok {
+		res := &proto.BStructRes{Type:resStruct.ResType,Result:"ok",Content:resStruct.ResContent}
+		tmpMsg := make([]byte,0)
+		rMsg,err := res.XXX_Marshal(tmpMsg,false)
+		if err == nil {
+			link.Write(rMsg)
+		}
+	}
 
 	return nil,err
 }

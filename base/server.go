@@ -28,7 +28,7 @@ var (
 
 type MsgHandle func(bMsg []byte,session *Session) ([]byte,error)
 
-type HandleFunc func(bMsg []byte,session *Session) ([]byte,error)
+type HandleFunc func(bMsg []byte,session *Session) ([]byte,string,error)
 
 type Server struct {
 	port int
@@ -52,7 +52,7 @@ func (baseServer *Server)RegisterFunc(str string,handle HandleFunc){
 func (baseServer *Server)GetFunc(str string) (HandleFunc,error){
 	handle,ok := baseServer.handleMap[str]
 	if ok != true{
-		return nil,errors.New("not exist")
+		return nil,errors.New("func not exist")
 	}
 	return handle,nil
 }
@@ -66,25 +66,6 @@ func (baseServer *Server)SetRouterHandle(h MsgHandle){
 }
 
 func (baseServer *Server)BMsgHandle(bMsg []byte,session *Session) ([]byte,error){
-	/*
-	reqStruct :=new(proto.BStruct)
-	err := reqStruct.XXX_Unmarshal(bMsg)
-	if err != nil {
-		log.Error().Str("req",string(bMsg)).Msg("BMsgHandle error request struct")
-	}
-	reqType := reqStruct.Type
-	_,ok := baseServer.handleMap[reqType]
-	if ok == false{
-	log.Error().Str("req",string(bMsg)).Str("type",reqType).Msg("error request type")
-		return []byte{},errors.New("func not exit")
-	}
-	resString,err := baseServer.handleMap[reqType](reqStruct.Content,session)
-	if err != nil{
-		log.Error().Str("req",string(bMsg)).Str("type",reqType).Msg("error request type")
-	} else {
-		log.Info().Str("req",string(bMsg)).Str("res",string(resString)).Msg("res success")
-	}
-	*/
 	return nil,nil
 }
 
@@ -131,7 +112,7 @@ func (baseServer *Server) ListenAndServe() {
 			//log.Fatal().Err(err)
 			continue
 		}
-		sess := NewSession(conn, baseServer,baseServer.handle)
+		sess := NewSession(conn,baseServer.handle)
 
 		go sess.SessionRead()
 		go sess.SessionWrite()
@@ -212,7 +193,7 @@ func (baseServer *Server) GetSClient(bMsg []byte,serverName string,sType int,key
 func (baseServer *Server)TryConnect(serverName string) error{
 	sMap := baseServer.ECache.GetServerInfoByName(serverName)
 	for _,v := range sMap.ServerIdMap{
-		cli := NewSClient(v.Ip,v.ServerId,v.ServerName,baseServer)
+		cli := NewSClient(v.Ip,v.ServerId,v.ServerName,baseServer.routerHandle)
 		if cli != nil {
 			value,ok := baseServer.sClientMap[v.SBase.BaseName]
 			if ok != true{
